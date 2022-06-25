@@ -1,0 +1,66 @@
+version: "3.7"
+services:
+  app:
+    build:
+      context: ./php/
+      dockerfile: Dockerfile
+    image: nine-php8.1-image
+    container_name: nine-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./../:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - nine-app-network
+
+  db:
+    image: mysql:5.7
+    container_name: nine-db
+    restart: unless-stopped
+    ports:
+      - "3301:3306"
+    environment:
+      MYSQL_DATABASE: nine-app
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_USER: root
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - ./mysql/my.cnf:/etc/mysql/my.cnf
+      - ./mysql/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+    depends_on:
+      - app
+    networks:
+      - nine-app-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nine-nginx
+    restart: unless-stopped
+    ports:
+      - 8881:80
+    volumes:
+      - ./../:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    depends_on:
+      - app
+    networks:
+      - nine-app-network
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: nine-phpmyadmin
+    restart: always
+    ports:
+      - 8081:80
+    environment:
+      - PMA_HOST=db
+      - PMA_PASSWORD=root
+    networks:
+      - nine-app-network
+
+networks:
+  nine-app-network:
+    driver: bridge
